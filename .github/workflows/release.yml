@@ -1,0 +1,68 @@
+name: Release Build
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Release Tag Name (e.g. v0.1)'
+        required: true
+        default: 'v0.1'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore KerkenezVoice.csproj
+
+      - name: Publish Single-File Executable
+        run: |
+          dotnet publish KerkenezVoice.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o release_output
+
+      - name: Package Release ZIP
+        shell: pwsh
+        run: |
+          $tag = if ("${{ github.event.inputs.tag_name }}" -ne "") { "${{ github.event.inputs.tag_name }}" } else { "${{ github.ref_name }}" }
+          Compress-Archive -Path release_output\KerkenezVoice.exe, config.json, run.bat, README.md, LICENSE -DestinationPath "KerkenezVoice-$tag-win-x64.zip" -Force
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.tag_name || github.ref_name }}
+          name: "Kerkenez Voice ${{ github.event.inputs.tag_name || github.ref_name }}"
+          prerelease: false
+          draft: false
+          body: |
+            ### Kerkenez Voice Release (${{ github.event.inputs.tag_name || github.ref_name }})
+            
+            Standalone Windows C# (.NET 10 / ONNX Runtime) desktop application for Kokoro TTS, aligned with the Kerkenez Suite.
+            
+            #### Highlights & Features
+            - **Kerkenez Suite Modernization:** 1-to-1 UI parity with Kerkenez Mail featuring an animated collapsible sidebar navigation, card panels, and high-DPI scaling.
+            - **Bilingual Localization:** English and Türkçe support on the fly.
+            - **Separated Suite Storage:** Permanent models in `%LOCALAPPDATA%\Programs\Kerkenez\voice` and user config in `%APPDATA%\Kerkenez\voice`.
+            - **Live Logs & Auditioning:** Monospace dark-themed live engine logs and real-time custom voice audition previews.
+            - **Zero Python / Torch Required:** Pure C# runtime using ONNX Runtime with NAudio playback and pure C# DSP effects pipeline.
+
+            #### Download
+            - **`KerkenezVoice.exe`** (Portable single-file executable)
+            - **`KerkenezVoice-${{ github.event.inputs.tag_name || github.ref_name }}-win-x64.zip`** (Complete archive with batch runner and default config)
+
+            *Requirements: Windows 10/11 (64-bit), [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0/runtime).*
+          files: |
+            release_output/KerkenezVoice.exe
+            KerkenezVoice-*.zip

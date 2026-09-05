@@ -1,0 +1,9 @@
+Kerkenez Voice
+Copyright (c) 2026 Ahmet İsmail Eraslan and Kerkenez Voice Contributors
+
+This product includes open-source software components. For complete license texts
+and copyright notices of third-party software used by Kerkenez Voice, see the NOTICES file.
+
+Model weights and architecture:
+Kokoro-82M by hexgrad (https://huggingface.co/hexgrad/Kokoro-82M)
+Licensed under the Apache License, Version 2.0.
