@@ -348,5 +348,32 @@ namespace KerkenezVoice.Services
                 catch { }
             }
         }
+
+        public void UpdateDefaultPresetVoice(string voiceName)
+        {
+            if (string.IsNullOrWhiteSpace(voiceName)) return;
+
+            try
+            {
+                string defaultPresetPath = Path.Combine(PresetsDirectory, "Default.json");
+                VoicePreset preset;
+                if (File.Exists(defaultPresetPath))
+                {
+                    string json = File.ReadAllText(defaultPresetPath);
+                    preset = JsonSerializer.Deserialize<VoicePreset>(json) ?? new VoicePreset();
+                }
+                else
+                {
+                    preset = new VoicePreset();
+                }
+
+                preset.Voice = voiceName;
+                File.WriteAllText(defaultPresetPath, JsonSerializer.Serialize(preset, new JsonSerializerOptions { WriteIndented = true }));
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[ModelManagerService] Error updating default preset voice: {ex.Message}");
+            }
+        }
     }
 }

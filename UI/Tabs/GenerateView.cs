@@ -67,6 +67,8 @@ namespace KerkenezVoice.UI.Tabs
         private List<KokoroVoice> _voices = new();
         private CancellationTokenSource? _activeCts;
         private string? _lastGeneratedPath;
+        private bool _isReloadingPresets;
+        private bool _isLoadingVoices;
 
         public GenerateView(
             ConfigService configService,
@@ -345,9 +347,13 @@ namespace KerkenezVoice.UI.Tabs
             _cboVoice = new ComboBox { Location = new Point((int)(16 * scale), (int)(34 * scale)), Width = (int)(220 * scale), DropDownStyle = ComboBoxStyle.DropDownList };
             _cboVoice.SelectedIndexChanged += (s, e) =>
             {
+                if (_isReloadingPresets || _isLoadingVoices) return;
                 if (_cboVoice.SelectedItem != null)
                 {
-                    _configService.Settings.Voice = _cboVoice.SelectedItem.ToString() ?? "af_heart";
+                    string selVoice = _cboVoice.SelectedItem.ToString() ?? "af_heart";
+                    _configService.Settings.Voice = selVoice;
+                    _configService.SaveConfig();
+                    _modelManager.UpdateDefaultPresetVoice(selVoice);
                 }
             };
 
@@ -474,11 +480,12 @@ namespace KerkenezVoice.UI.Tabs
 
         public void LoadVoices()
         {
-            _cboVoice.Items.Clear();
-            if (!_modelManager.AreModelsPresent()) return;
-
+            _isLoadingVoices = true;
             try
             {
+                _cboVoice.Items.Clear();
+                if (!_modelManager.AreModelsPresent()) return;
+
                 _voices = _modelManager.LoadVoices();
                 foreach (var v in _voices)
                 {
@@ -486,29 +493,94 @@ namespace KerkenezVoice.UI.Tabs
                 }
 
                 string cur = _configService.Settings.Voice;
-                int idx = _cboVoice.Items.IndexOf(cur);
-                _cboVoice.SelectedIndex = (idx >= 0) ? idx : 0;
+                int idx = FindVoiceIndex(_cboVoice, cur);
+                if (idx >= 0)
+                {
+                    _cboVoice.SelectedIndex = idx;
+                }
+                else if (_cboVoice.Items.Count > 0)
+                {
+                    _cboVoice.SelectedIndex = 0;
+                }
             }
             catch (Exception ex)
             {
                 _logger.Report($"Error loading voices into generate view: {ex.Message}");
             }
+            finally
+            {
+                _isLoadingVoices = false;
+            }
+        }
+
+        public static int FindVoiceIndex(ComboBox combo, string? voiceName)
+        {
+            if (string.IsNullOrWhiteSpace(voiceName) || combo.Items.Count == 0) return -1;
+            string target = voiceName.Trim();
+
+            // 1. Exact match (case-insensitive)
+            for (int i = 0; i < combo.Items.Count; i++)
+            {
+                if (string.Equals(combo.Items[i]?.ToString(), target, StringComparison.OrdinalIgnoreCase))
+                    return i;
+            }
+
+            // 2. Prefix-agnostic match (e.g. "heart" matches "af_heart", or "af_heart" matches "heart")
+            string targetBase = (target.Length > 3 && target[2] == '_') ? target.Substring(3) : target;
+            for (int i = 0; i < combo.Items.Count; i++)
+            {
+                string item = combo.Items[i]?.ToString() ?? "";
+                if (string.IsNullOrWhiteSpace(item)) continue;
+
+                string itemBase = (item.Length > 3 && item[2] == '_') ? item.Substring(3) : item;
+
+                if (string.Equals(itemBase, targetBase, StringComparison.OrdinalIgnoreCase))
+                    return i;
+
+                if (item.EndsWith("_" + target, StringComparison.OrdinalIgnoreCase) ||
+                    target.EndsWith("_" + item, StringComparison.OrdinalIgnoreCase))
+                    return i;
+            }
+
+            return -1;
         }
 
         private void ReloadPresets()
         {
-            _cboPresets.Items.Clear();
-            _cboPresets.Items.Add("Default");
-
-            if (Directory.Exists(ConfigService.PresetsFolder))
+            _isReloadingPresets = true;
+            try
             {
-                foreach (var f in Directory.GetFiles(ConfigService.PresetsFolder, "*.json"))
-                {
-                    _cboPresets.Items.Add(Path.GetFileNameWithoutExtension(f));
-                }
-            }
+                string currentSelection = _cboPresets.SelectedItem?.ToString() ?? "Default";
+                _cboPresets.Items.Clear();
+                _cboPresets.Items.Add("Default");
 
-            _cboPresets.SelectedIndex = 0;
+                if (Directory.Exists(ConfigService.PresetsFolder))
+                {
+                    foreach (var f in Directory.GetFiles(ConfigService.PresetsFolder, "*.json"))
+                    {
+                        string name = Path.GetFileNameWithoutExtension(f);
+                        if (!name.Equals("Default", StringComparison.OrdinalIgnoreCase))
+                        {
+                            _cboPresets.Items.Add(name);
+                        }
+                    }
+                }
+
+                int pIdx = -1;
+                for (int i = 0; i < _cboPresets.Items.Count; i++)
+                {
+                    if (string.Equals(_cboPresets.Items[i]?.ToString(), currentSelection, StringComparison.OrdinalIgnoreCase))
+                    {
+                        pIdx = i;
+                        break;
+                    }
+                }
+                _cboPresets.SelectedIndex = (pIdx >= 0) ? pIdx : 0;
+            }
+            finally
+            {
+                _isReloadingPresets = false;
+            }
         }
 
         private void LoadConfigValues()
@@ -722,7 +794,17 @@ namespace KerkenezVoice.UI.Tabs
                     if (p != null)
                     {
                         var s = _configService.Settings;
-                        s.Voice = p.Voice;
+
+                        // If "Default" preset is selected, respect the user's default voice
+                        if (sel.Equals("Default", StringComparison.OrdinalIgnoreCase))
+                        {
+                            p.Voice = s.Voice;
+                        }
+                        else if (!_isReloadingPresets && !string.IsNullOrWhiteSpace(p.Voice))
+                        {
+                            s.Voice = p.Voice;
+                        }
+
                         s.Speed = p.Speed;
                         s.Volume = p.Volume;
                         s.Pitch = p.Pitch;
@@ -732,8 +814,12 @@ namespace KerkenezVoice.UI.Tabs
                         s.ApplyFx = p.ApplyFx;
 
                         LoadConfigValues();
-                        int vIdx = _cboVoice.Items.IndexOf(p.Voice);
-                        if (vIdx >= 0) _cboVoice.SelectedIndex = vIdx;
+
+                        int vIdx = FindVoiceIndex(_cboVoice, p.Voice);
+                        if (vIdx >= 0)
+                        {
+                            _cboVoice.SelectedIndex = vIdx;
+                        }
                     }
                 }
                 catch { }

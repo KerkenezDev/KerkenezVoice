@@ -20,6 +20,7 @@ namespace KerkenezVoice.UI.Tabs
 
         public event Action? SettingsSaved;
 
+        private bool _isLoadingSettings;
         private FlowLayoutPanel _mainFlow = null!;
 
         // 1. Model & Engine Controls
@@ -330,6 +331,18 @@ namespace KerkenezVoice.UI.Tabs
                 Width = 200,
                 DropDownStyle = ComboBoxStyle.DropDownList,
                 Margin = new Padding(0, 0, 20, 0)
+            };
+            _cboDefaultVoice.SelectedIndexChanged += (s, e) =>
+            {
+                if (_isLoadingSettings) return;
+                if (_cboDefaultVoice.SelectedItem != null)
+                {
+                    string chosenVoice = _cboDefaultVoice.SelectedItem.ToString() ?? "af_heart";
+                    _configService.Settings.Voice = chosenVoice;
+                    _configService.SaveConfig();
+                    _modelManager.UpdateDefaultPresetVoice(chosenVoice);
+                    SettingsSaved?.Invoke();
+                }
             };
 
             _lblDefaultFormat = new Label { Text = "Export Format:", AutoSize = true, Margin = new Padding(0, 4, 8, 0) };
@@ -988,64 +1001,72 @@ namespace KerkenezVoice.UI.Tabs
 
         public void LoadSettings()
         {
-            var s = _configService.Settings;
-
-            UpdateModelStatusBadge();
-
-            _numThreads.Value = Math.Clamp(s.NumThreads, 1, 16);
-            _chkCaching.Checked = s.Caching;
-
-            // Load Voices
-            _cboDefaultVoice.Items.Clear();
-            if (_modelManager.AreModelsPresent())
+            _isLoadingSettings = true;
+            try
             {
-                try
+                var s = _configService.Settings;
+
+                UpdateModelStatusBadge();
+
+                _numThreads.Value = Math.Clamp(s.NumThreads, 1, 16);
+                _chkCaching.Checked = s.Caching;
+
+                // Load Voices
+                _cboDefaultVoice.Items.Clear();
+                if (_modelManager.AreModelsPresent())
                 {
-                    var voices = _modelManager.LoadVoices();
-                    var names = new System.Collections.Generic.HashSet<string>(voices.Select(v => v.Name), StringComparer.OrdinalIgnoreCase);
-                    if (Directory.Exists(_modelManager.CustomVoicesDirectory))
+                    try
                     {
-                        foreach (var f in Directory.GetFiles(_modelManager.CustomVoicesDirectory, "*.bin"))
-                        {
-                            names.Add(Path.GetFileNameWithoutExtension(f));
-                        }
+                        var voices = _modelManager.LoadVoices();
+                        var names = new System.Collections.Generic.HashSet<string>(voices.Select(v => v.Name), StringComparer.OrdinalIgnoreCase);
+                        foreach (var n in names.OrderBy(x => x)) _cboDefaultVoice.Items.Add(n);
                     }
-                    foreach (var n in names.OrderBy(x => x)) _cboDefaultVoice.Items.Add(n);
+                    catch { }
                 }
-                catch { }
-            }
-            int vIdx = _cboDefaultVoice.Items.IndexOf(s.Voice);
-            _cboDefaultVoice.SelectedIndex = (vIdx >= 0) ? vIdx : (_cboDefaultVoice.Items.Count > 0 ? 0 : -1);
-
-            int fIdx = _cboDefaultFormat.Items.IndexOf(s.Format.ToLowerInvariant());
-            _cboDefaultFormat.SelectedIndex = (fIdx >= 0) ? fIdx : 0;
-
-            _chkCombine.Checked = s.Combine;
-            _chkSeparate.Checked = s.Separate;
-            _chkSubtitles.Checked = s.ExportSubtitles;
-            _chkNormalize.Checked = s.Normalize;
-            _chkTrim.Checked = s.Trim;
-
-            _txtOutDir.Text = s.GetEffectiveOutputDirectory();
-
-            // Language
-            string curLang = s.Language ?? "en";
-            for (int i = 0; i < _cboLanguage.Items.Count; i++)
-            {
-                if (_cboLanguage.Items[i] is LanguageComboItem item && item.Language.Code.Equals(curLang, StringComparison.OrdinalIgnoreCase))
+                int vIdx = GenerateView.FindVoiceIndex(_cboDefaultVoice, s.Voice);
+                if (vIdx >= 0)
                 {
-                    _cboLanguage.SelectedIndex = i;
-                    break;
+                    _cboDefaultVoice.SelectedIndex = vIdx;
                 }
-            }
+                else if (_cboDefaultVoice.Items.Count > 0)
+                {
+                    _cboDefaultVoice.SelectedIndex = 0;
+                }
 
-            // Layout & Scaling
-            _chkCollapseSidebarByDefault.Checked = s.CollapseSidebarByDefault;
-            decimal wScale = (decimal)(s.WindowWidthScale > 0.1 && s.WindowWidthScale <= 1.0 ? s.WindowWidthScale * 100.0 : 60.0);
-            decimal hScale = (decimal)(s.WindowHeightScale > 0.1 && s.WindowHeightScale <= 1.0 ? s.WindowHeightScale * 100.0 : 56.0);
-            _numWindowWidthScale.Value = Math.Max(_numWindowWidthScale.Minimum, Math.Min(_numWindowWidthScale.Maximum, wScale));
-            _numWindowHeightScale.Value = Math.Max(_numWindowHeightScale.Minimum, Math.Min(_numWindowHeightScale.Maximum, hScale));
-            UpdateScalePreview();
+                int fIdx = _cboDefaultFormat.Items.IndexOf(s.Format.ToLowerInvariant());
+                _cboDefaultFormat.SelectedIndex = (fIdx >= 0) ? fIdx : 0;
+
+                _chkCombine.Checked = s.Combine;
+                _chkSeparate.Checked = s.Separate;
+                _chkSubtitles.Checked = s.ExportSubtitles;
+                _chkNormalize.Checked = s.Normalize;
+                _chkTrim.Checked = s.Trim;
+
+                _txtOutDir.Text = s.GetEffectiveOutputDirectory();
+
+                // Language
+                string curLang = s.Language ?? "en";
+                for (int i = 0; i < _cboLanguage.Items.Count; i++)
+                {
+                    if (_cboLanguage.Items[i] is LanguageComboItem item && item.Language.Code.Equals(curLang, StringComparison.OrdinalIgnoreCase))
+                    {
+                        _cboLanguage.SelectedIndex = i;
+                        break;
+                    }
+                }
+
+                // Layout & Scaling
+                _chkCollapseSidebarByDefault.Checked = s.CollapseSidebarByDefault;
+                decimal wScale = (decimal)(s.WindowWidthScale > 0.1 && s.WindowWidthScale <= 1.0 ? s.WindowWidthScale * 100.0 : 60.0);
+                decimal hScale = (decimal)(s.WindowHeightScale > 0.1 && s.WindowHeightScale <= 1.0 ? s.WindowHeightScale * 100.0 : 56.0);
+                _numWindowWidthScale.Value = Math.Max(_numWindowWidthScale.Minimum, Math.Min(_numWindowWidthScale.Maximum, wScale));
+                _numWindowHeightScale.Value = Math.Max(_numWindowHeightScale.Minimum, Math.Min(_numWindowHeightScale.Maximum, hScale));
+                UpdateScalePreview();
+            }
+            finally
+            {
+                _isLoadingSettings = false;
+            }
         }
 
         public void ApplyLocalization()
@@ -1101,7 +1122,9 @@ namespace KerkenezVoice.UI.Tabs
 
             if (_cboDefaultVoice.SelectedItem != null)
             {
-                s.Voice = _cboDefaultVoice.SelectedItem.ToString() ?? s.Voice;
+                string chosenVoice = _cboDefaultVoice.SelectedItem.ToString() ?? s.Voice;
+                s.Voice = chosenVoice;
+                _modelManager.UpdateDefaultPresetVoice(chosenVoice);
             }
             if (_cboDefaultFormat.SelectedItem != null)
             {
@@ -1150,6 +1173,7 @@ namespace KerkenezVoice.UI.Tabs
             {
                 var defaults = new AppSettings();
                 _configService.SaveConfig(defaults);
+                _modelManager.UpdateDefaultPresetVoice(defaults.Voice);
                 LoadSettings();
                 SettingsSaved?.Invoke();
             }

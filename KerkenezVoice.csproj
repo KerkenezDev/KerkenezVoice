@@ -35,6 +35,8 @@
     <Compile Remove="source\**" />
     <EmbeddedResource Remove="source\**" />
     <None Remove="source\**" />
+    <Compile Remove="scratch\**" />
+    <None Remove="scratch\**" />
   </ItemGroup>
 
   <ItemGroup>
