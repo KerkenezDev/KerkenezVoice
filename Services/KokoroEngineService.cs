@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using KerkenezVoice.Models;
 using KokoroSharp;
 using KokoroSharp.Core;
+using KokoroSharp.Processing;
 using NAudio.Wave;
 
 namespace KerkenezVoice.Services
@@ -24,7 +25,7 @@ namespace KerkenezVoice.Services
         public float[] AudioData { get; set; } = Array.Empty<float>();
     }
 
-    public class KokoroEngineService
+    public class KokoroEngineService : IDisposable
     {
         private readonly ModelManagerService _modelManager;
         private readonly AudioProcessingService _audioProcessing;
@@ -33,7 +34,9 @@ namespace KerkenezVoice.Services
         private readonly AudioPlaybackService _playbackService;
         private readonly ConcurrentDictionary<string, float[]> _memoryCache = new();
 
-        private KokoroTTS? _tts;
+        private readonly ConcurrentBag<KokoroModel> _modelPool = new();
+        private readonly SemaphoreSlim _poolSignal = new(0);
+        private int _activeModelCount = 0;
         private readonly object _initLock = new();
         private CancellationTokenSource? _cts;
 
@@ -41,7 +44,7 @@ namespace KerkenezVoice.Services
         public event Action<string, bool>? OnStatus;
         public event Action? OnFinished;
 
-        public bool IsInitialized => _tts != null;
+        public bool IsInitialized => _activeModelCount > 0;
 
         public KokoroEngineService(
             ModelManagerService modelManager,
@@ -59,10 +62,10 @@ namespace KerkenezVoice.Services
 
         public bool EnsureInitialized()
         {
-            if (_tts != null) return true;
+            if (_activeModelCount > 0) return true;
             lock (_initLock)
             {
-                if (_tts != null) return true;
+                if (_activeModelCount > 0) return true;
                 try
                 {
                     if (!_modelManager.AreModelsPresent())
@@ -77,8 +80,10 @@ namespace KerkenezVoice.Services
                     KokoroVoiceManager.Voices.Clear();
                     KokoroVoiceManager.Voices.AddRange(voices);
 
-                    _tts = KokoroTTS.LoadModel(_modelManager.ModelFilePath);
-                    _tts.SetVolume(0f);
+                    var initialModel = new KokoroModel(_modelManager.ModelFilePath);
+                    _modelPool.Add(initialModel);
+                    _activeModelCount = 1;
+
                     OnStatus?.Invoke("Engine Initialized.", false);
                     return true;
                 }
@@ -87,6 +92,65 @@ namespace KerkenezVoice.Services
                     OnStatus?.Invoke($"Engine Init Failed: {ex.Message}", true);
                     return false;
                 }
+            }
+        }
+
+        public async Task<KokoroModel> RentModelAsync(int maxPoolSize, CancellationToken ct = default)
+        {
+            if (_modelPool.TryTake(out var existingModel))
+            {
+                return existingModel;
+            }
+
+            KokoroModel? createdModel = null;
+            lock (_initLock)
+            {
+                if (_modelPool.TryTake(out existingModel))
+                {
+                    return existingModel;
+                }
+
+                if (_activeModelCount < maxPoolSize)
+                {
+                    createdModel = new KokoroModel(_modelManager.ModelFilePath);
+                    _activeModelCount++;
+                }
+            }
+
+            if (createdModel != null)
+            {
+                return createdModel;
+            }
+
+            while (!ct.IsCancellationRequested)
+            {
+                await _poolSignal.WaitAsync(ct);
+                if (_modelPool.TryTake(out var model))
+                {
+                    return model;
+                }
+            }
+
+            ct.ThrowIfCancellationRequested();
+            throw new OperationCanceledException(ct);
+        }
+
+        public void ReturnModel(KokoroModel model)
+        {
+            _modelPool.Add(model);
+            _poolSignal.Release();
+        }
+
+        public void Dispose()
+        {
+            Cancel();
+            lock (_initLock)
+            {
+                while (_modelPool.TryTake(out var model))
+                {
+                    try { model.Dispose(); } catch { }
+                }
+                _activeModelCount = 0;
             }
         }
 
@@ -121,7 +185,7 @@ namespace KerkenezVoice.Services
         {
             KokoroLanguage targetLang = GetKokoroLanguage(langCode);
 
-            if (_tts == null || KokoroVoiceManager.Voices.Count == 0)
+            if (_activeModelCount == 0 || KokoroVoiceManager.Voices.Count == 0)
             {
                 EnsureInitialized();
             }
@@ -342,11 +406,11 @@ namespace KerkenezVoice.Services
             float[,,]? customVoiceTensor = null,
             string? langCode = null)
         {
-            return await Task.Run(() =>
+            return await Task.Run(async () =>
             {
                 try
                 {
-                    if (_tts == null && !EnsureInitialized()) return null;
+                    if (_activeModelCount == 0 && !EnsureInitialized()) return null;
 
                     var msSegments = ParseMultispeakerText(text);
                     if (msSegments.Count > 3)
@@ -418,7 +482,17 @@ namespace KerkenezVoice.Services
                             Speed = (float)effSpeed
                         };
 
-                        var rawAudio = SynthesizeTextToSamples(segText, voice, pipelineConfig);
+                        var model = await RentModelAsync(1);
+                        float[] rawAudio;
+                        try
+                        {
+                            rawAudio = SynthesizeTextToSamples(segText, voice, pipelineConfig, model);
+                        }
+                        finally
+                        {
+                            ReturnModel(model);
+                        }
+
                         if (rawAudio.Length > 0)
                         {
                             var processed = _audioProcessing.ProcessAudio(rawAudio, targetConfig);
@@ -456,7 +530,7 @@ namespace KerkenezVoice.Services
             {
                 try
                 {
-                    if (_tts == null && !EnsureInitialized())
+                    if (_activeModelCount == 0 && !EnsureInitialized())
                     {
                         OnStatus?.Invoke("Engine not initialized. Models missing?", true);
                         OnFinished?.Invoke();
@@ -537,7 +611,7 @@ namespace KerkenezVoice.Services
                         {
                             if (ct.IsCancellationRequested) return;
 
-                            var chunk = await Task.Run(() => ProcessChunk(item.index, item.chunkText, item.chunkConfig, (chars, snippet) =>
+                            var chunk = await ProcessChunkAsync(item.index, item.chunkText, item.chunkConfig, (chars, snippet) =>
                             {
                                 Interlocked.Add(ref processedChars, chars);
                                 var elapsed = DateTime.Now - startTime;
@@ -557,7 +631,7 @@ namespace KerkenezVoice.Services
                                 if (cleanSnip.Length > 40) cleanSnip = cleanSnip.Substring(0, 37) + "...";
 
                                 OnProgress?.Invoke(totalFraction * 100.0, elapsed, eta, $"Processing: {cleanSnip}");
-                            }, ct));
+                            }, ct);
 
                             generatedChunks[item.index] = chunk;
                         }
@@ -576,9 +650,20 @@ namespace KerkenezVoice.Services
                         return;
                     }
 
-                    var validChunks = generatedChunks.Where(c => c != null).Select(c => c!).ToList();
+                    var validChunks = generatedChunks
+                        .Where(c => c != null && c.AudioData != null && c.AudioData.Length > 0)
+                        .Select(c => c!)
+                        .OrderBy(c => c.SegmentIndex)
+                        .ToList();
 
-                    OnStatus?.Invoke($"Generated {validChunks.Count} segments. Processing outputs...", false);
+                    if (validChunks.Count < totalChunks)
+                    {
+                        OnStatus?.Invoke($"Warning: Completed {validChunks.Count}/{totalChunks} segments. Processing outputs...", false);
+                    }
+                    else
+                    {
+                        OnStatus?.Invoke($"Generated {validChunks.Count} segments. Processing outputs...", false);
+                    }
 
                     string timeId = DateTime.Now.ToString("yyyyMMddHHmmss");
                     string baseFilename = config.Filename;
@@ -618,9 +703,14 @@ namespace KerkenezVoice.Services
                             string combinePath = Path.Combine(config.OutDir, $"{baseFilename}_{timeId}_combined.wav");
 
                             var allAudio = new List<float>();
-                            foreach (var chunk in validChunks)
+                            for (int i = 0; i < validChunks.Count; i++)
                             {
-                                allAudio.AddRange(chunk.AudioData);
+                                if (i > 0 && config.Trim)
+                                {
+                                    // Add natural 0.25s breathing pause between trimmed chunks
+                                    allAudio.AddRange(new float[(int)(0.25f * 24000)]);
+                                }
+                                allAudio.AddRange(validChunks[i].AudioData);
                             }
 
                             SaveWavFile(combinePath, allAudio.ToArray(), 24000);
@@ -655,7 +745,7 @@ namespace KerkenezVoice.Services
             {
                 try
                 {
-                    if (_tts == null && !EnsureInitialized())
+                    if (_activeModelCount == 0 && !EnsureInitialized())
                     {
                         OnStatus?.Invoke("Engine not initialized. Models missing?", true);
                         OnFinished?.Invoke();
@@ -740,7 +830,7 @@ namespace KerkenezVoice.Services
                                 OnStatus?.Invoke($"JIT: Generating chunk {i + 1}/{totalSegments}...", false);
 
                                 var (chunkText, chunkConfig) = allTextSegments[i];
-                                var chunk = await Task.Run(() => ProcessChunk(i, chunkText, chunkConfig, null, ct));
+                                var chunk = await ProcessChunkAsync(i, chunkText, chunkConfig, null, ct);
 
                                 if (chunk != null)
                                 {
@@ -838,7 +928,7 @@ namespace KerkenezVoice.Services
             });
         }
 
-        private GeneratedChunk? ProcessChunk(
+        private async Task<GeneratedChunk?> ProcessChunkAsync(
             int index,
             string text,
             AppSettings config,
@@ -873,7 +963,18 @@ namespace KerkenezVoice.Services
                 Speed = (float)effSpeed
             };
 
-            var rawAudio = SynthesizeTextToSamples(text, voice, pipelineConfig);
+            int maxPoolSize = Math.Max(1, config.NumThreads);
+            var model = await RentModelAsync(maxPoolSize, ct);
+            float[] rawAudio;
+            try
+            {
+                rawAudio = SynthesizeTextToSamples(text, voice, pipelineConfig, model, ct);
+            }
+            finally
+            {
+                ReturnModel(model);
+            }
+
             progressCallback?.Invoke(text.Length, text);
 
             if (config.Caching && !string.IsNullOrEmpty(cacheKey) && rawAudio.Length > 0)
@@ -897,41 +998,66 @@ namespace KerkenezVoice.Services
             };
         }
 
-        private float[] SynthesizeTextToSamples(string text, KokoroVoice voice, KokoroSharp.Processing.KokoroTTSPipelineConfig config)
+        private float[] SynthesizeTextToSamples(
+            string text,
+            KokoroVoice voice,
+            KokoroSharp.Processing.KokoroTTSPipelineConfig config,
+            KokoroModel model,
+            CancellationToken ct = default)
         {
-            if (_tts == null) return Array.Empty<float>();
+            if (string.IsNullOrWhiteSpace(text)) return Array.Empty<float>();
+            if (ct.IsCancellationRequested) return Array.Empty<float>();
 
             try
             {
-                var handle = _tts.SpeakFast(text, voice, config);
-                if (handle?.Job != null)
+                string langCode = voice.GetLangCode();
+                bool preprocess = config?.PreprocessText ?? true;
+                int[] tokens = Tokenizer.Tokenize(text.Trim(), langCode, preprocess);
+                if (tokens.Length == 0) return Array.Empty<float>();
+
+                var segmentationStrategy = new DefaultSegmentationConfig();
+                List<int[]> segments = config?.SegmentationFunc != null
+                    ? config.SegmentationFunc(tokens)
+                    : SegmentationSystem.SplitToSegments(tokens, segmentationStrategy);
+
+                if (segments == null || segments.Count == 0) return Array.Empty<float>();
+
+                var allSamples = new List<float>();
+                var pauseStrategy = config?.SecondsOfPauseBetweenProperSegments ?? new PauseAfterSegmentStrategy();
+
+                for (int i = 0; i < segments.Count; i++)
                 {
-                    // Wait for synthesis job to complete
-                    while (!handle.Job.isDone)
+                    if (ct.IsCancellationRequested) break;
+
+                    int[] segTokens = segments[i];
+                    if (segTokens == null || segTokens.Length == 0) continue;
+
+                    float[] segAudio = model.Infer(segTokens, voice.Features, config?.Speed ?? 1.0f, out _);
+                    if (segAudio != null && segAudio.Length > 0)
                     {
-                        Thread.Sleep(20);
+                        allSamples.AddRange(segAudio);
                     }
 
-                    if (handle.ReadyPlaybackHandles != null && handle.ReadyPlaybackHandles.Count > 0)
+                    // Insert natural pause between segments if ending in punctuation
+                    if (i < segments.Count - 1 && segTokens.Length > 0 && Tokenizer.PunctuationTokens.Contains(segTokens[^1]))
                     {
-                        var allSamples = new List<float>();
-                        foreach (var ph in handle.ReadyPlaybackHandles)
+                        char punct = Tokenizer.TokenToChar[segTokens[^1]];
+                        float pauseSec = pauseStrategy[punct];
+                        if (pauseSec > 0.01f)
                         {
-                            if (ph.Samples != null && ph.Samples.Length > 0)
-                            {
-                                allSamples.AddRange(ph.Samples);
-                            }
+                            int pauseSamples = (int)(pauseSec * 24000);
+                            allSamples.AddRange(new float[pauseSamples]);
                         }
-                        return allSamples.ToArray();
                     }
                 }
+
+                return allSamples.ToArray();
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Synthesis error: {ex.Message}");
+                return Array.Empty<float>();
             }
-
-            return Array.Empty<float>();
         }
 
         public static void SaveWavFile(string filePath, float[] samples, int sampleRate = 24000)
