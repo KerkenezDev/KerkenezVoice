@@ -66,6 +66,8 @@ namespace KerkenezVoice.UI.Tabs
         // 5. Interface & Layout Controls
         private Label _lblSecUi = null!;
         private CheckBox _chkCollapseSidebarByDefault = null!;
+        private Label _lblEbookSplitter = null!;
+        private NumericUpDown _numEbookSplitter = null!;
         private Label _lblScalingHeader = null!;
         private Label _lblScalingDesc = null!;
         private Label _lblWidth = null!;
@@ -536,9 +538,40 @@ namespace KerkenezVoice.UI.Tabs
                 Text = "Start with left sidebar collapsed by default (compact icon rail on launch)",
                 AutoSize = true,
                 Checked = false,
-                Margin = new Padding(0, 0, 0, 10),
+                Margin = new Padding(0, 0, 0, 8),
                 Font = new Font("Segoe UI", 9F)
             };
+
+            var rowEbookSplitter = new FlowLayoutPanel
+            {
+                Width = ContentW - 28,
+                AutoSize = true,
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents = true,
+                Margin = new Padding(0, 2, 0, 10)
+            };
+
+            _lblEbookSplitter = new Label
+            {
+                Text = "Ebook Studio Chapter List Width (px):",
+                AutoSize = true,
+                Font = new Font("Segoe UI", 9F),
+                Margin = new Padding(0, 4, 10, 0)
+            };
+
+            _numEbookSplitter = new NumericUpDown
+            {
+                Width = 90,
+                Minimum = 250,
+                Maximum = 750,
+                Increment = 10,
+                Value = 380,
+                Font = new Font("Segoe UI", 9F),
+                Margin = new Padding(0, 0, 0, 0)
+            };
+
+            rowEbookSplitter.Controls.Add(_lblEbookSplitter);
+            rowEbookSplitter.Controls.Add(_numEbookSplitter);
 
             _lblScalingHeader = new Label
             {
@@ -670,6 +703,7 @@ namespace KerkenezVoice.UI.Tabs
 
             pnlUiCard.Controls.Add(_lblSecUi);
             pnlUiCard.Controls.Add(_chkCollapseSidebarByDefault);
+            pnlUiCard.Controls.Add(rowEbookSplitter);
             pnlUiCard.Controls.Add(_lblScalingHeader);
             pnlUiCard.Controls.Add(_lblScalingDesc);
             pnlUiCard.Controls.Add(rowScaleControls);
@@ -1057,6 +1091,7 @@ namespace KerkenezVoice.UI.Tabs
 
                 // Layout & Scaling
                 _chkCollapseSidebarByDefault.Checked = s.CollapseSidebarByDefault;
+                _numEbookSplitter.Value = Math.Clamp(s.EbookSplitterDistance > 0 ? s.EbookSplitterDistance : 380, 250, 750);
                 decimal wScale = (decimal)(s.WindowWidthScale > 0.1 && s.WindowWidthScale <= 1.0 ? s.WindowWidthScale * 100.0 : 60.0);
                 decimal hScale = (decimal)(s.WindowHeightScale > 0.1 && s.WindowHeightScale <= 1.0 ? s.WindowHeightScale * 100.0 : 56.0);
                 _numWindowWidthScale.Value = Math.Max(_numWindowWidthScale.Minimum, Math.Min(_numWindowWidthScale.Maximum, wScale));
@@ -1093,6 +1128,7 @@ namespace KerkenezVoice.UI.Tabs
 
             if (_lblSecUi != null) _lblSecUi.Text = Lang.T(StringKeys.SettingsSecUi);
             if (_chkCollapseSidebarByDefault != null) _chkCollapseSidebarByDefault.Text = Lang.T(StringKeys.SettingsCollapseSidebar);
+            if (_lblEbookSplitter != null) _lblEbookSplitter.Text = Lang.T(StringKeys.SettingsEbookSplitter);
             if (_lblScalingHeader != null) _lblScalingHeader.Text = Lang.T(StringKeys.SettingsScalingHeader);
             if (_lblScalingDesc != null) _lblScalingDesc.Text = Lang.T(StringKeys.SettingsScalingDesc);
             if (_lblWidth != null) _lblWidth.Text = Lang.T(StringKeys.SettingsWidthScale);
@@ -1140,6 +1176,7 @@ namespace KerkenezVoice.UI.Tabs
             s.OutDir = _txtOutDir.Text.Trim();
 
             s.CollapseSidebarByDefault = _chkCollapseSidebarByDefault.Checked;
+            s.EbookSplitterDistance = (int)_numEbookSplitter.Value;
             s.WindowWidthScale = (double)_numWindowWidthScale.Value / 100.0;
             s.WindowHeightScale = (double)_numWindowHeightScale.Value / 100.0;
 

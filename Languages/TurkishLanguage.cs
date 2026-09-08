@@ -11,6 +11,7 @@ namespace KerkenezVoice.Languages
         {
             // Navigation
             Set(StringKeys.NavSynthesize, "Ses Sentezle");
+            Set(StringKeys.NavEbookVoicer, "E-Kitap Seslendirici");
             Set(StringKeys.NavCustomVoices, "Özel Sesler");
             Set(StringKeys.NavAudioFx, "Ses Efektleri");
             Set(StringKeys.NavLexicon, "Sözlük & Telaffuz");
@@ -145,6 +146,7 @@ namespace KerkenezVoice.Languages
             Set(StringKeys.SettingsBtnBrowseOutDir, "Gözat...");
             Set(StringKeys.SettingsSecUi, "🖥️  Arayüz ve Düzen");
             Set(StringKeys.SettingsCollapseSidebar, "Kenar çubuğunu varsayılan olarak daraltılmış başlat (kompakt simge rayı)");
+            Set(StringKeys.SettingsEbookSplitter, "E-kitap Bölüm Listesi Genişliği (px):");
             Set(StringKeys.SettingsWindowScale, "Pencere Boyut Ölçeği (Ekran alanının %'si):");
             Set(StringKeys.SettingsScalingHeader, "Varsayılan Başlatma Pencere Ölçeği (Ekrana Göre):");
             Set(StringKeys.SettingsScalingDesc, "Uygulama açılışında geçerli monitörün kullanılabilir masaüstü alanının (çalışma alanı) hedef oranı (Varsayılan: %60 genişlik × %56 yükseklik).");
@@ -176,6 +178,40 @@ namespace KerkenezVoice.Languages
             Set(StringKeys.LogsBtnCopy, "Günlükleri Kopyala");
             Set(StringKeys.LogsBtnClear, "Günlüğü Temizle");
             Set(StringKeys.LogsCopied, "Günlükler panoya kopyalandı!");
+
+            // Ebook Voicer Studio
+            Set(StringKeys.EbookTitle, "E-Kitap Seslendirici & Sesli Kitap Stüdyosu");
+            Set(StringKeys.EbookSubtitle, "EPUB, PDF ve TXT e-kitaplarını gürültü temizleme ve bölüm kontrolüyle doğal sesli kitaplara dönüştürün");
+            Set(StringKeys.EbookBtnOpen, "📂 E-Kitap Aç...");
+            Set(StringKeys.EbookNoBookLoaded, "Yüklü e-kitap yok");
+            Set(StringKeys.EbookSelectBookPrompt, "Bölümleri incelemek, gürültüleri temizlemek ve seslendirmek için bir EPUB, PDF veya TXT dosyası açın.");
+            Set(StringKeys.EbookAuthorUnknown, "Bilinmeyen Yazar");
+            Set(StringKeys.EbookChapters, "Bölümler ve Kısımlar");
+            Set(StringKeys.EbookSelectAll, "Tümünü Seç");
+            Set(StringKeys.EbookSelectNone, "Seçimi Kaldır");
+            Set(StringKeys.EbookCleanOptions, "Gürültü Temizleme Filtreleri");
+            Set(StringKeys.EbookOptHyphenation, "Satır Sonu Tirelemelerini Düzelt");
+            Set(StringKeys.EbookOptPageNumbers, "Sayfa Numarası ve Başlıkları Kaldır");
+            Set(StringKeys.EbookOptCitations, "Kaynak Alıntılarını [1] Kaldır");
+            Set(StringKeys.EbookOptUrls, "Web Bağlantılarını Kaldır");
+            Set(StringKeys.EbookOptLigatures, "Harf Birleşimleri & Tireleri Düzelt");
+            Set(StringKeys.EbookOptFootnotes, "Dipnot İşaretlerini Kaldır");
+            Set(StringKeys.EbookBtnReapplyCleaning, "↺ Metni Yeniden Temizle");
+            Set(StringKeys.EbookBtnResetOriginal, "Orijinaline Döndür");
+            Set(StringKeys.EbookTextEditorTitle, "Bölüm İçeriği Önizleme ve Düzenleyici");
+            Set(StringKeys.EbookVoiceSelected, "🎙️ Seçili Bölümleri Seslendir");
+            Set(StringKeys.EbookBtnCancel, "⏹ İptal Et");
+            Set(StringKeys.EbookBtnOpenFolder, "📂 Çıktı Klasörünü Aç");
+            Set(StringKeys.EbookOptExportIndividual, "Bölümleri ayrı ses dosyaları olarak kaydet");
+            Set(StringKeys.EbookOptExportCombined, "Tek bir birleşik sesli kitap dosyası oluştur");
+            Set(StringKeys.EbookOptGenerateSubtitles, "Altyazı üret (.srt)");
+            Set(StringKeys.EbookOverallProgress, "Genel Sesli Kitap İlerlemesi");
+            Set(StringKeys.EbookCurrentChapter, "Mevcut Bölüm");
+            Set(StringKeys.EbookStatusReady, "Seslendirmeye hazır.");
+            Set(StringKeys.EbookStatusParsing, "E-kitap ayrıştırılıyor ve temizleniyor...");
+            Set(StringKeys.EbookStatusSynthesizing, "{0} / {1}. bölüm seslendiriliyor: '{2}'...");
+            Set(StringKeys.EbookStatusComplete, "Sesli kitap sentezleme başarıyla tamamlandı!");
+            Set(StringKeys.EbookStatusCancelled, "Sesli kitap sentezi iptal edildi.");
         }
     }
 }

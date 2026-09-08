@@ -1,106 +1,9 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
 using System.Text.Json.Serialization;
 
-namespace KerkenezVoice.Models
+namespace KokoroGUI.Models
 {
-    public class AppSettings
+    public class FxPreset
     {
-        // -------------------------------------------------------------
-        // Core Shell & Window Preferences (Aligned with Kerkenez Suite)
-        // -------------------------------------------------------------
-        public string AppVersion { get; set; } = "1.0.0";
-        public string Language { get; set; } = "en"; // "en", "tr"
-
-        public double WindowWidthScale { get; set; } = 0.60;
-        public double WindowHeightScale { get; set; } = 0.56;
-        public int WindowWidth { get; set; } = 0;
-        public int WindowHeight { get; set; } = 0;
-        public bool CollapseSidebarByDefault { get; set; } = false;
-        public int EbookSplitterDistance { get; set; } = 380;
-
-        // -------------------------------------------------------------
-        // Voice Synthesis Engine Parameters
-        // -------------------------------------------------------------
-        [JsonPropertyName("voice")]
-        public string Voice { get; set; } = "af_heart";
-
-        [JsonPropertyName("lang_code")]
-        public string LangCode { get; set; } = "a";
-
-        [JsonPropertyName("speed")]
-        public double Speed { get; set; } = 1.0;
-
-        [JsonPropertyName("volume")]
-        public double Volume { get; set; } = 1.0;
-
-        [JsonPropertyName("pitch")]
-        public double Pitch { get; set; } = 0.0;
-
-        [JsonPropertyName("num_threads")]
-        public int NumThreads { get; set; } = 1;
-
-        [JsonPropertyName("format")]
-        public string Format { get; set; } = "wav";
-
-        [JsonPropertyName("out_dir")]
-        public string OutDir { get; set; } = "";
-
-        [JsonPropertyName("split_pattern")]
-        public string SplitPattern { get; set; } = @"\n+";
-
-        [JsonPropertyName("separate")]
-        public bool Separate { get; set; } = false;
-
-        [JsonPropertyName("combine")]
-        public bool Combine { get; set; } = true;
-
-        [JsonPropertyName("export_subtitles")]
-        public bool ExportSubtitles { get; set; } = false;
-
-        [JsonPropertyName("filename")]
-        public string Filename { get; set; } = "output";
-
-        [JsonPropertyName("caching")]
-        public bool Caching { get; set; } = true;
-
-        [JsonPropertyName("normalize")]
-        public bool Normalize { get; set; } = false;
-
-        [JsonPropertyName("trim")]
-        public bool Trim { get; set; } = false;
-
-        [JsonPropertyName("apply_fx")]
-        public bool ApplyFx { get; set; } = false;
-
-        [JsonPropertyName("fx_preset")]
-        public string FxPreset { get; set; } = "Default";
-
-        public string GetEffectiveOutputDirectory()
-        {
-            if (!string.IsNullOrWhiteSpace(OutDir) && Directory.Exists(OutDir))
-            {
-                return OutDir;
-            }
-
-            string musicPath = Environment.GetFolderPath(Environment.SpecialFolder.MyMusic);
-            if (!string.IsNullOrWhiteSpace(musicPath))
-            {
-                string target = Path.Combine(musicPath, "KerkenezVoice");
-                if (!Directory.Exists(target)) Directory.CreateDirectory(target);
-                return target;
-            }
-
-            string docsPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-            string fallback = Path.Combine(docsPath, "KerkenezVoice");
-            if (!Directory.Exists(fallback)) Directory.CreateDirectory(fallback);
-            return fallback;
-        }
-
-        // -------------------------------------------------------------
-        // Audio Effects Pipeline (Pure Managed C# DSP)
-        // -------------------------------------------------------------
         [JsonPropertyName("reverb_enabled")]
         public bool ReverbEnabled { get; set; } = false;
 
@@ -229,21 +132,5 @@ namespace KerkenezVoice.Models
 
         [JsonPropertyName("gain_db")]
         public double GainDb { get; set; } = 0.0;
-
-        // -------------------------------------------------------------
-        // Lexicon Replacement Rules
-        // -------------------------------------------------------------
-        [JsonPropertyName("lexicon")]
-        public Dictionary<string, string> Lexicon { get; set; } = new();
-
-        public AppSettings Clone()
-        {
-            var clone = (AppSettings)this.MemberwiseClone();
-            if (this.Lexicon != null)
-            {
-                clone.Lexicon = new Dictionary<string, string>(this.Lexicon);
-            }
-            return clone;
-        }
     }
 }

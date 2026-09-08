@@ -19,17 +19,19 @@ namespace KerkenezVoice.UI.Controls
         public static string GetTabTitle(int index) => index switch
         {
             0 => Lang.T(StringKeys.NavSynthesize),
-            1 => Lang.T(StringKeys.NavCustomVoices),
-            2 => Lang.T(StringKeys.NavAudioFx),
-            3 => Lang.T(StringKeys.NavLexicon),
-            4 => Lang.T(StringKeys.NavSettings),
-            5 => Lang.T(StringKeys.NavLiveLogs),
+            1 => Lang.T(StringKeys.NavEbookVoicer),
+            2 => Lang.T(StringKeys.NavCustomVoices),
+            3 => Lang.T(StringKeys.NavAudioFx),
+            4 => Lang.T(StringKeys.NavLexicon),
+            5 => Lang.T(StringKeys.NavSettings),
+            6 => Lang.T(StringKeys.NavLiveLogs),
             _ => ""
         };
 
         private readonly string[] _tabTitles = new[]
         {
             "Synthesize",
+            "Ebook Voicer",
             "Custom Voices",
             "Audio FX",
             "Lexicon",
@@ -40,9 +42,10 @@ namespace KerkenezVoice.UI.Controls
         private readonly string[] _tabIcons = new[]
         {
             "\uE768", // Play / Speech
+            "\uE82D", // Book / Ebook
             "\uE77B", // People / Voices
             "\uE995", // Equalizer / Sliders
-            "\uE82D", // Book / Dictionary
+            "\uE8D4", // Lexicon / Dictionary
             "\uE713", // Settings gear
             "\uE700"  // Menu / Logs
         };

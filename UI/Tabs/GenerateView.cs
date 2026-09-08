@@ -11,6 +11,7 @@ using System.Windows.Forms;
 using KerkenezVoice.Languages;
 using KerkenezVoice.Models;
 using KerkenezVoice.Services;
+using KerkenezVoice.UI.Dialogs;
 using KokoroSharp.Core;
 
 namespace KerkenezVoice.UI.Tabs
@@ -313,10 +314,34 @@ namespace KerkenezVoice.UI.Tabs
             var lblSelect = new Label { Text = Lang.T(StringKeys.SynthSelectFile), Dock = DockStyle.Top, Height = (int)(22 * scale), ForeColor = Color.FromArgb(80, 80, 80) };
             var fileRow = new Panel { Dock = DockStyle.Top, Height = (int)(32 * scale) };
             _txtFilePath = new TextBox { Dock = DockStyle.Fill, Font = new Font("Segoe UI", 9.5F) };
-            _btnBrowseFile = new Button { Text = Lang.T(StringKeys.SynthBrowse), Dock = DockStyle.Right, Width = (int)(90 * scale), FlatStyle = FlatStyle.System };
+
+            var btnBrowseWrap = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Right,
+                AutoSize = true,
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents = false
+            };
+            _btnBrowseFile = new Button { Text = Lang.T(StringKeys.SynthBrowse), Width = (int)(90 * scale), Height = (int)(30 * scale), FlatStyle = FlatStyle.System, Cursor = Cursors.Hand, Margin = new Padding((int)(6 * scale), 0, (int)(6 * scale), 0) };
             _btnBrowseFile.Click += OnBrowseFile;
+
+            var btnBatch = new Button
+            {
+                Text = "⚡ Batch Studio (Folder / Files)...",
+                Width = (int)(220 * scale),
+                Height = (int)(30 * scale),
+                FlatStyle = FlatStyle.System,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                Cursor = Cursors.Hand,
+                Margin = new Padding(0)
+            };
+            btnBatch.Click += (s, e) => OpenBatchDialog();
+
+            btnBrowseWrap.Controls.Add(_btnBrowseFile);
+            btnBrowseWrap.Controls.Add(btnBatch);
+
             fileRow.Controls.Add(_txtFilePath);
-            fileRow.Controls.Add(_btnBrowseFile);
+            fileRow.Controls.Add(btnBrowseWrap);
 
             var lblFileTips = new Label { Text = Lang.T(StringKeys.SynthSupportedDocs), Dock = DockStyle.Top, Height = (int)(24 * scale), ForeColor = Color.FromArgb(120, 120, 120), Font = new Font("Segoe UI", 8.5F) };
             _pnlFileInput.Controls.Add(lblFileTips);
@@ -442,10 +467,14 @@ namespace KerkenezVoice.UI.Tabs
                 {
                     this.BeginInvoke(new Action(() =>
                     {
-                        int pct = (int)Math.Clamp(percent * 100.0, 0, 100);
+                        double normalizedPercent = percent <= 1.0 ? percent * 100.0 : percent;
+                        int pct = (int)Math.Clamp(normalizedPercent, 0, 100);
                         _progressBar.Value = pct;
                         _lblDetails.Text = $"{pct}% | {elapsed.TotalSeconds:0.0}s";
-                        StatusUpdated?.Invoke(Lang.Format(StringKeys.StatusSynthesizing, file, percent * 100.0), GetMetricsString());
+                        if (this.Visible)
+                        {
+                            StatusUpdated?.Invoke(Lang.Format(StringKeys.StatusSynthesizing, file, normalizedPercent), GetMetricsString());
+                        }
                     }));
                 }
             };
@@ -619,6 +648,18 @@ namespace KerkenezVoice.UI.Tabs
             {
                 _txtFilePath.Text = ofd.FileName;
             }
+        }
+
+        private void OpenBatchDialog()
+        {
+            SyncUiToSettings();
+            using var dlg = new BatchProcessingDialog(
+                _configService,
+                _engineService,
+                _docParser,
+                _modelManager,
+                _logger);
+            dlg.ShowDialog(this);
         }
 
         private async void OnStartGeneration(object? sender, EventArgs e)

@@ -8,14 +8,13 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using KerkenezVoice.Models;
+using KokoroGUI.Models;
 using KokoroSharp;
 using KokoroSharp.Core;
 using KokoroSharp.Processing;
-using Microsoft.ML.OnnxRuntime;
 using NAudio.Wave;
 
-namespace KerkenezVoice.Services
+namespace KokoroGUI.Services
 {
     public class GeneratedChunk
     {
@@ -81,7 +80,7 @@ namespace KerkenezVoice.Services
                     KokoroVoiceManager.Voices.Clear();
                     KokoroVoiceManager.Voices.AddRange(voices);
 
-                    var initialModel = CreateModel(1);
+                    var initialModel = new KokoroModel(_modelManager.ModelFilePath);
                     _modelPool.Add(initialModel);
                     _activeModelCount = 1;
 
@@ -96,23 +95,9 @@ namespace KerkenezVoice.Services
             }
         }
 
-        private KokoroModel CreateModel(int maxPoolSize)
+        public async Task<bool> InitializeAsync()
         {
-            try
-            {
-                int intraThreads = Math.Max(1, Math.Min(4, Environment.ProcessorCount / Math.Max(1, maxPoolSize)));
-                var options = new SessionOptions
-                {
-                    IntraOpNumThreads = intraThreads,
-                    InterOpNumThreads = 1,
-                    ExecutionMode = ExecutionMode.ORT_SEQUENTIAL
-                };
-                return new KokoroModel(_modelManager.ModelFilePath, options);
-            }
-            catch
-            {
-                return new KokoroModel(_modelManager.ModelFilePath);
-            }
+            return await Task.Run(() => EnsureInitialized());
         }
 
         public async Task<KokoroModel> RentModelAsync(int maxPoolSize, CancellationToken ct = default)
@@ -132,7 +117,7 @@ namespace KerkenezVoice.Services
 
                 if (_activeModelCount < maxPoolSize)
                 {
-                    createdModel = CreateModel(maxPoolSize);
+                    createdModel = new KokoroModel(_modelManager.ModelFilePath);
                     _activeModelCount++;
                 }
             }
@@ -174,11 +159,6 @@ namespace KerkenezVoice.Services
             }
         }
 
-        public async Task<bool> InitializeAsync()
-        {
-            return await Task.Run(() => EnsureInitialized());
-        }
-
         public void ReloadVoices()
         {
             var voices = _modelManager.LoadVoices();
@@ -204,11 +184,6 @@ namespace KerkenezVoice.Services
         public KokoroVoice? ResolveVoice(string? voiceName, string? langCode = null)
         {
             KokoroLanguage targetLang = GetKokoroLanguage(langCode);
-
-            if (_activeModelCount == 0 || KokoroVoiceManager.Voices.Count == 0)
-            {
-                EnsureInitialized();
-            }
 
             lock (_initLock)
             {
@@ -552,7 +527,7 @@ namespace KerkenezVoice.Services
                 {
                     if (_activeModelCount == 0 && !EnsureInitialized())
                     {
-                        OnStatus?.Invoke("Engine not initialized. Models missing?", true);
+                        OnStatus?.Invoke("Engine not initialized.", true);
                         OnFinished?.Invoke();
                         return;
                     }
@@ -597,7 +572,7 @@ namespace KerkenezVoice.Services
                         }
 
                         int targetChunkSize = config.NumThreads > 1
-                            ? Math.Max(300, Math.Min(2500, segmentText.Length / Math.Max(1, config.NumThreads)))
+                            ? Math.Max(300, Math.Min(1500, segmentText.Length / Math.Max(1, config.NumThreads)))
                             : 3000;
                         var segChunks = SmartSplit(segmentText, targetChunkSize);
                         foreach (var chunk in segChunks)
@@ -647,14 +622,10 @@ namespace KerkenezVoice.Services
                                     eta = $"{(int)remTime.TotalMinutes:D2}:{remTime.Seconds:D2}";
                                 }
 
-                                double cps = elapsed.TotalSeconds > 0.1 ? (double)processedChars / elapsed.TotalSeconds : 0.0;
-                                double realtimeFactor = cps / 15.0; // ~15 chars/sec speech rate
-
                                 string cleanSnip = snippet.Replace("\n", " ").Trim();
-                                if (cleanSnip.Length > 32) cleanSnip = cleanSnip.Substring(0, 29) + "...";
+                                if (cleanSnip.Length > 40) cleanSnip = cleanSnip.Substring(0, 37) + "...";
 
-                                string speedInfo = realtimeFactor > 0.5 ? $"{realtimeFactor:0.0}x | {cps:0} ch/s" : $"{cps:0} ch/s";
-                                OnProgress?.Invoke(totalFraction * 100.0, elapsed, eta, $"[{speedInfo}] {cleanSnip}");
+                                OnProgress?.Invoke(totalFraction * 100.0, elapsed, eta, $"Processing: {cleanSnip}");
                             }, ct);
 
                             generatedChunks[item.index] = chunk;
@@ -771,7 +742,7 @@ namespace KerkenezVoice.Services
                 {
                     if (_activeModelCount == 0 && !EnsureInitialized())
                     {
-                        OnStatus?.Invoke("Engine not initialized. Models missing?", true);
+                        OnStatus?.Invoke("Engine not initialized.", true);
                         OnFinished?.Invoke();
                         return;
                     }
@@ -1213,4 +1184,3 @@ namespace KerkenezVoice.Services
         }
     }
 }
-

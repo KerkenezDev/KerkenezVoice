@@ -21,6 +21,7 @@ namespace KerkenezVoice.UI
         private readonly SubtitleExportService _subtitleExport;
         private readonly VoiceMixingService _voiceMixingService;
         private readonly DocumentParserService _docParser;
+        private readonly EbookParserService _ebookParser;
         private readonly KokoroEngineService _engineService;
 
         private SidebarNav _sidebar = null!;
@@ -30,6 +31,7 @@ namespace KerkenezVoice.UI
         private ToolStripStatusLabel _lblMetrics = null!;
 
         private GenerateView _generateView = null!;
+        private EbookVoicerView _ebookVoicerView = null!;
         private CustomVoicesView _customVoicesView = null!;
         private AudioFxView _audioFxView = null!;
         private LexiconView _lexiconView = null!;
@@ -53,6 +55,7 @@ namespace KerkenezVoice.UI
             _subtitleExport = new SubtitleExportService();
             _voiceMixingService = new VoiceMixingService(_modelManager);
             _docParser = new DocumentParserService();
+            _ebookParser = new EbookParserService();
 
             _engineService = new KokoroEngineService(
                 _modelManager,
@@ -113,6 +116,7 @@ namespace KerkenezVoice.UI
                 if (initOk)
                 {
                     _generateView.LoadVoices();
+                    _ebookVoicerView.LoadVoices();
                     _customVoicesView.ReloadVoices();
                     UpdateStatusStrip(Lang.T(StringKeys.StatusReady), GetMetricsString());
                     _logsView.AppendLog("[✓] Kokoro TTS engine ready.");
@@ -243,6 +247,7 @@ namespace KerkenezVoice.UI
             _generateView = new GenerateView(_configService, _modelManager, _engineService, _playbackService, _docParser, logger);
             _generateView.StatusUpdated += (status, metrics) => UpdateStatusStrip(status, metrics);
 
+            _ebookVoicerView = new EbookVoicerView(_configService, _modelManager, _engineService, _playbackService, _ebookParser, logger);
             _customVoicesView = new CustomVoicesView(_modelManager, _voiceMixingService, _playbackService, _engineService, logger);
             _audioFxView = new AudioFxView(_configService, logger);
             _lexiconView = new LexiconView(_configService);
@@ -250,6 +255,7 @@ namespace KerkenezVoice.UI
             _settingsView.SettingsSaved += () =>
             {
                 _generateView.LoadVoices();
+                _ebookVoicerView.LoadVoices();
                 _customVoicesView.ReloadVoices();
                 UpdateStatusStrip(_lblStatus.Text, GetMetricsString());
             };
@@ -262,6 +268,7 @@ namespace KerkenezVoice.UI
             };
 
             _contentPanel.Controls.Add(_generateView);
+            _contentPanel.Controls.Add(_ebookVoicerView);
             _contentPanel.Controls.Add(_customVoicesView);
             _contentPanel.Controls.Add(_audioFxView);
             _contentPanel.Controls.Add(_lexiconView);
@@ -286,13 +293,14 @@ namespace KerkenezVoice.UI
         private void ShowTab(int index)
         {
             _generateView.Visible = (index == 0);
-            _customVoicesView.Visible = (index == 1);
-            _audioFxView.Visible = (index == 2);
-            _lexiconView.Visible = (index == 3);
-            _settingsView.Visible = (index == 4);
-            _logsView.Visible = (index == 5);
+            _ebookVoicerView.Visible = (index == 1);
+            _customVoicesView.Visible = (index == 2);
+            _audioFxView.Visible = (index == 3);
+            _lexiconView.Visible = (index == 4);
+            _settingsView.Visible = (index == 5);
+            _logsView.Visible = (index == 6);
 
-            if (index == 4)
+            if (index == 5)
             {
                 _settingsView.LoadSettings();
                 _settingsView.BringToFront();
@@ -323,7 +331,7 @@ namespace KerkenezVoice.UI
 
         private void OnFormKeyDown(object? sender, KeyEventArgs e)
         {
-            if (e.Control && e.KeyCode >= Keys.D1 && e.KeyCode <= Keys.D6)
+            if (e.Control && e.KeyCode >= Keys.D1 && e.KeyCode <= Keys.D7)
             {
                 int tabIdx = e.KeyCode - Keys.D1;
                 _sidebar.SelectedIndex = tabIdx;

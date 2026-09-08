@@ -4,6 +4,7 @@ namespace KerkenezVoice.Languages
     {
         // 1. Navigation & Sidebar
         public const string NavSynthesize = "Nav.Synthesize";
+        public const string NavEbookVoicer = "Nav.EbookVoicer";
         public const string NavCustomVoices = "Nav.CustomVoices";
         public const string NavAudioFx = "Nav.AudioFx";
         public const string NavLexicon = "Nav.Lexicon";
@@ -138,6 +139,7 @@ namespace KerkenezVoice.Languages
         public const string SettingsBtnBrowseOutDir = "Settings.BtnBrowseOutDir";
         public const string SettingsSecUi = "Settings.SecUi";
         public const string SettingsCollapseSidebar = "Settings.CollapseSidebar";
+        public const string SettingsEbookSplitter = "Settings.EbookSplitter";
         public const string SettingsWindowScale = "Settings.WindowScale";
         public const string SettingsScalingHeader = "Settings.ScalingHeader";
         public const string SettingsScalingDesc = "Settings.ScalingDesc";
@@ -169,5 +171,39 @@ namespace KerkenezVoice.Languages
         public const string LogsBtnCopy = "Logs.BtnCopy";
         public const string LogsBtnClear = "Logs.BtnClear";
         public const string LogsCopied = "Logs.Copied";
+
+        // 9. Ebook Voicer Studio
+        public const string EbookTitle = "Ebook.Title";
+        public const string EbookSubtitle = "Ebook.Subtitle";
+        public const string EbookBtnOpen = "Ebook.BtnOpen";
+        public const string EbookNoBookLoaded = "Ebook.NoBookLoaded";
+        public const string EbookSelectBookPrompt = "Ebook.SelectBookPrompt";
+        public const string EbookAuthorUnknown = "Ebook.AuthorUnknown";
+        public const string EbookChapters = "Ebook.Chapters";
+        public const string EbookSelectAll = "Ebook.SelectAll";
+        public const string EbookSelectNone = "Ebook.SelectNone";
+        public const string EbookCleanOptions = "Ebook.CleanOptions";
+        public const string EbookOptHyphenation = "Ebook.OptHyphenation";
+        public const string EbookOptPageNumbers = "Ebook.OptPageNumbers";
+        public const string EbookOptCitations = "Ebook.OptCitations";
+        public const string EbookOptUrls = "Ebook.OptUrls";
+        public const string EbookOptLigatures = "Ebook.OptLigatures";
+        public const string EbookOptFootnotes = "Ebook.OptFootnotes";
+        public const string EbookBtnReapplyCleaning = "Ebook.BtnReapplyCleaning";
+        public const string EbookBtnResetOriginal = "Ebook.BtnResetOriginal";
+        public const string EbookTextEditorTitle = "Ebook.TextEditorTitle";
+        public const string EbookVoiceSelected = "Ebook.VoiceSelected";
+        public const string EbookBtnCancel = "Ebook.BtnCancel";
+        public const string EbookBtnOpenFolder = "Ebook.BtnOpenFolder";
+        public const string EbookOptExportIndividual = "Ebook.OptExportIndividual";
+        public const string EbookOptExportCombined = "Ebook.OptExportCombined";
+        public const string EbookOptGenerateSubtitles = "Ebook.OptGenerateSubtitles";
+        public const string EbookOverallProgress = "Ebook.OverallProgress";
+        public const string EbookCurrentChapter = "Ebook.CurrentChapter";
+        public const string EbookStatusReady = "Ebook.StatusReady";
+        public const string EbookStatusParsing = "Ebook.StatusParsing";
+        public const string EbookStatusSynthesizing = "Ebook.StatusSynthesizing";
+        public const string EbookStatusComplete = "Ebook.StatusComplete";
+        public const string EbookStatusCancelled = "Ebook.StatusCancelled";
     }
 }

@@ -11,6 +11,7 @@ namespace KerkenezVoice.Languages
         {
             // Navigation
             Set(StringKeys.NavSynthesize, "Synthesize");
+            Set(StringKeys.NavEbookVoicer, "Ebook Voicer");
             Set(StringKeys.NavCustomVoices, "Custom Voices");
             Set(StringKeys.NavAudioFx, "Audio FX");
             Set(StringKeys.NavLexicon, "Lexicon");
@@ -145,6 +146,7 @@ namespace KerkenezVoice.Languages
             Set(StringKeys.SettingsBtnBrowseOutDir, "Browse...");
             Set(StringKeys.SettingsSecUi, "🖥️  Interface & Layout");
             Set(StringKeys.SettingsCollapseSidebar, "Start with left sidebar collapsed by default (compact icon rail on launch)");
+            Set(StringKeys.SettingsEbookSplitter, "Ebook Studio Chapter List Width (px):");
             Set(StringKeys.SettingsWindowScale, "Window Size Scaling (% of screen area):");
             Set(StringKeys.SettingsScalingHeader, "Default Launch Window Scaling (Relative to Display):");
             Set(StringKeys.SettingsScalingDesc, "Target proportion of the active monitor's usable desktop area (working area) on launch (Default: 60% width × 56% height).");
@@ -176,6 +178,40 @@ namespace KerkenezVoice.Languages
             Set(StringKeys.LogsBtnCopy, "Copy Logs");
             Set(StringKeys.LogsBtnClear, "Clear Logs");
             Set(StringKeys.LogsCopied, "Logs copied to clipboard!");
+
+            // Ebook Voicer Studio
+            Set(StringKeys.EbookTitle, "Ebook Voicer & Audiobook Studio");
+            Set(StringKeys.EbookSubtitle, "Convert EPUB, PDF, and TXT ebooks into natural audiobooks with artifact cleaning and chapter control");
+            Set(StringKeys.EbookBtnOpen, "📂 Open Ebook...");
+            Set(StringKeys.EbookNoBookLoaded, "No ebook loaded");
+            Set(StringKeys.EbookSelectBookPrompt, "Open an EPUB, PDF, or TXT file to inspect chapters, clean artifacts, and synthesize speech.");
+            Set(StringKeys.EbookAuthorUnknown, "Unknown Author");
+            Set(StringKeys.EbookChapters, "Chapters & Sections");
+            Set(StringKeys.EbookSelectAll, "Select All");
+            Set(StringKeys.EbookSelectNone, "Select None");
+            Set(StringKeys.EbookCleanOptions, "Artifact Cleaning Pipeline");
+            Set(StringKeys.EbookOptHyphenation, "Fix Line-break Hyphens");
+            Set(StringKeys.EbookOptPageNumbers, "Strip Page # & Headers");
+            Set(StringKeys.EbookOptCitations, "Remove Citations [1]");
+            Set(StringKeys.EbookOptUrls, "Remove Web URLs");
+            Set(StringKeys.EbookOptLigatures, "Clean Ligatures & Dashes");
+            Set(StringKeys.EbookOptFootnotes, "Remove Footnote Markers");
+            Set(StringKeys.EbookBtnReapplyCleaning, "↺ Re-clean Text");
+            Set(StringKeys.EbookBtnResetOriginal, "Reset to Original");
+            Set(StringKeys.EbookTextEditorTitle, "Chapter Content Preview & Editor");
+            Set(StringKeys.EbookVoiceSelected, "🎙️ Voice Selected Chapters");
+            Set(StringKeys.EbookBtnCancel, "⏹ Cancel");
+            Set(StringKeys.EbookBtnOpenFolder, "📂 Open Output Folder");
+            Set(StringKeys.EbookOptExportIndividual, "Export individual chapter audio files");
+            Set(StringKeys.EbookOptExportCombined, "Combine into single audiobook file");
+            Set(StringKeys.EbookOptGenerateSubtitles, "Generate subtitles (.srt)");
+            Set(StringKeys.EbookOverallProgress, "Overall Audiobook Progress");
+            Set(StringKeys.EbookCurrentChapter, "Current Chapter");
+            Set(StringKeys.EbookStatusReady, "Ready to synthesize.");
+            Set(StringKeys.EbookStatusParsing, "Parsing and cleaning ebook...");
+            Set(StringKeys.EbookStatusSynthesizing, "Synthesizing chapter {0} of {1}: '{2}'...");
+            Set(StringKeys.EbookStatusComplete, "Audiobook synthesis completed successfully!");
+            Set(StringKeys.EbookStatusCancelled, "Audiobook synthesis was cancelled.");
         }
     }
 }
